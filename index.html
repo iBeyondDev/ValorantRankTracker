@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Valorant Rank Path to Ascendant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f1923;
+            color: #ece8e1;
+        }
+
+        .valorant-card {
+            background-color: #1f2326;
+            border-left: 4px solid #ff4655;
+        }
+
+        .btn-valorant {
+            background-color: #ff4655;
+            transition: all 0.2s;
+        }
+
+        .btn-valorant:hover {
+            background-color: #ff5e6a;
+            transform: translateY(-1px);
+        }
+
+        .input-dark {
+            background-color: #2a2e33;
+            border: 1px solid #3d434a;
+            color: white;
+        }
+
+        .rank-ascendant {
+            color: #49ba92;
+            text-shadow: 0 0 10px rgba(73, 186, 146, 0.4);
+        }
+
+        .progress-bar {
+            background: #3d434a;
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            background: #ff4655;
+            height: 100%;
+            transition: width 0.5s ease-out;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen">
+    <div class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <header class="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <h1 class="text-3xl font-bold uppercase tracking-tighter">Path to <span class="rank-ascendant">Ascendant</span></h1>
+                <p class="text-gray-400">Year-end goal tracker</p>
+            </div>
+            <div id="countdown" class="text-right">
+                <span id="weeksLeft" class="text-2xl font-mono text-red-500 font-bold">--</span>
+                <span class="block text-xs uppercase text-gray-500">Fridays Remaining</span>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Setup & Goal Section -->
+            <div class="md:col-span-1 space-y-6">
+                <section class="valorant-card p-6 rounded-r-lg shadow-xl">
+                    <h2 class="text-lg font-semibold mb-4 border-b border-gray-700 pb-2">Setup Current Rank</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">Current Rank</label>
+                            <select id="currentRank" class="w-full p-2 rounded input-dark focus:outline-none focus:ring-2 focus:ring-red-500">
+                                <option value="0">Iron 1</option>
+                                <option value="100">Iron 2</option>
+                                <option value="200">Iron 3</option>
+                                <option value="300">Bronze 1</option>
+                                <option value="400">Bronze 2</option>
+                                <option value="500">Bronze 3</option>
+                                <option value="600">Silver 1</option>
+                                <option value="700">Silver 2</option>
+                                <option value="800">Silver 3</option>
+                                <option value="900">Gold 1</option>
+                                <option value="1000">Gold 2</option>
+                                <option value="1100">Gold 3</option>
+                                <option value="1200">Platinum 1</option>
+                                <option value="1300">Platinum 2</option>
+                                <option value="1400">Platinum 3</option>
+                                <option value="1500">Diamond 1</option>
+                                <option value="1600">Diamond 2</option>
+                                <option value="1700">Diamond 3</option>
+                                <option value="1800">Ascendant 1 (Goal!)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">Current RR (0-100)</label>
+                            <input type="number" id="currentRR" min="0" max="99" value="0" class="w-full p-2 rounded input-dark focus:outline-none">
+                        </div>
+                        <button onclick="saveInitialState()" class="w-full btn-valorant py-2 rounded font-bold uppercase text-sm tracking-widest">Update Start Point</button>
+                    </div>
+                </section>
+
+                <section class="valorant-card p-6 rounded-r-lg shadow-xl bg-opacity-50">
+                    <h2 class="text-lg font-semibold mb-2">Target Metrics</h2>
+                    <div class="space-y-3">
+                        <div class="flex justify-between">
+                            <span class="text-gray-400 text-sm">Total RR Needed:</span>
+                            <span id="totalRRNeeded" class="font-bold text-red-400">--</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-400 text-sm">Required RR/Week:</span>
+                            <span id="weeklyTarget" class="font-bold text-yellow-400">--</span>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Tracking & History Section -->
+            <div class="md:col-span-2 space-y-6">
+                <!-- Log Progress -->
+                <section class="valorant-card p-6 rounded-r-lg shadow-xl">
+                    <h2 class="text-lg font-semibold mb-4">Log Friday Progress</h2>
+                    <div class="flex flex-col md:flex-row gap-4 items-end">
+                        <div class="flex-1">
+                            <label class="block text-sm text-gray-400 mb-1">RR Gained/Lost this week (+ or -)</label>
+                            <input type="number" id="weeklyChange" placeholder="e.g. 25 or -15" class="w-full p-2 rounded input-dark focus:outline-none">
+                        </div>
+                        <button onclick="logProgress()" class="btn-valorant px-6 py-2 rounded font-bold uppercase text-sm h-[42px]">Log Friday</button>
+                    </div>
+                </section>
+
+                <!-- Visualization -->
+                <section class="bg-[#161b21] p-6 rounded shadow-inner border border-gray-800">
+                    <h3 class="text-sm font-bold uppercase text-gray-500 mb-4 tracking-widest">Projection vs. Reality</h3>
+                    <div id="chartContainer" class="space-y-6">
+                        <!-- Progress Bars will be injected here -->
+                    </div>
+                </section>
+
+                <!-- Log Table -->
+                <section class="overflow-hidden rounded border border-gray-800">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-[#2a2e33] text-gray-400 uppercase text-xs">
+                            <tr>
+                                <th class="p-3">Date</th>
+                                <th class="p-3">Change</th>
+                                <th class="p-3">Total RR</th>
+                                <th class="p-3">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logTableBody">
+                            <!-- Logs will appear here -->
+                        </tbody>
+                    </table>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Constants
+        const GOAL_RR = 1800; // Ascendant 1 starts here
+        const APP_STORAGE_KEY = 'val_rank_tracker_data';
+
+        // State
+        let state = {
+            startRR: 0,
+            logs: [], // { date: string, change: number, total: number }
+            lastUpdated: new Date().toISOString()
+        };
+
+        // Initialize
+        window.onload = () => {
+            loadState();
+            refreshUI();
+        };
+
+        function loadState() {
+            const saved = localStorage.getItem(APP_STORAGE_KEY);
+            if (saved) {
+                state = JSON.parse(saved);
+            }
+        }
+
+        function saveState() {
+            localStorage.setItem(APP_STORAGE_KEY, JSON.stringify(state));
+        }
+
+        function getFridaysRemaining() {
+            const now = new Date();
+            const yearEnd = new Date(now.getFullYear(), 11, 31);
+            let count = 0;
+            let tempDate = new Date(now);
+
+            while (tempDate <= yearEnd) {
+                if (tempDate.getDay() === 5) count++;
+                tempDate.setDate(tempDate.getDate() + 1);
+            }
+            return count;
+        }
+
+        function saveInitialState() {
+            const rankBase = parseInt(document.getElementById('currentRank').value);
+            const rr = parseInt(document.getElementById('currentRR').value) || 0;
+            state.startRR = rankBase + rr;
+            state.logs = []; // Reset logs when starting over
+            saveState();
+            refreshUI();
+        }
+
+        function logProgress() {
+            const changeInput = document.getElementById('weeklyChange');
+            const change = parseInt(changeInput.value);
+            
+            if (isNaN(change)) return;
+
+            const lastTotal = state.logs.length > 0 ? state.logs[state.logs.length - 1].total : state.startRR;
+            const newTotal = lastTotal + change;
+
+            const entry = {
+                date: new Date().toLocaleDateString(),
+                change: change,
+                total: newTotal
+            };
+
+            state.logs.push(entry);
+            changeInput.value = '';
+            saveState();
+            refreshUI();
+        }
+
+        function refreshUI() {
+            const fridaysLeft = getFridaysRemaining();
+            document.getElementById('weeksLeft').innerText = fridaysLeft;
+
+            const currentTotal = state.logs.length > 0 ? state.logs[state.logs.length - 1].total : state.startRR;
+            const remainingRR = GOAL_RR - currentTotal;
+            
+            document.getElementById('totalRRNeeded').innerText = remainingRR > 0 ? remainingRR : "GOAL REACHED!";
+            
+            const weeklyRequired = fridaysLeft > 0 ? (remainingRR / fridaysLeft).toFixed(1) : 0;
+            document.getElementById('weeklyTarget').innerText = remainingRR > 0 ? `${weeklyRequired} RR` : "Done";
+
+            renderTable();
+            renderProjections(fridaysLeft, currentTotal);
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('logTableBody');
+            tbody.innerHTML = '';
+            
+            [...state.logs].reverse().forEach(log => {
+                const row = document.createElement('tr');
+                row.className = "border-t border-gray-800 hover:bg-gray-800/30";
+                
+                const changeColor = log.change >= 0 ? 'text-green-400' : 'text-red-400';
+                const status = log.total >= state.startRR ? 'Trending Up' : 'Trending Down';
+
+                row.innerHTML = `
+                    <td class="p-3 text-gray-300">${log.date}</td>
+                    <td class="p-3 ${changeColor} font-bold">${log.change > 0 ? '+' : ''}${log.change}</td>
+                    <td class="p-3 text-white">${log.total}</td>
+                    <td class="p-3 text-xs text-gray-500 italic">${status}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function renderProjections(fridaysRemaining, currentRR) {
+            const container = document.getElementById('chartContainer');
+            container.innerHTML = '';
+
+            // Current Progress
+            const progressPercent = Math.min(100, Math.max(0, (currentRR / GOAL_RR) * 100));
+            
+            const header = document.createElement('div');
+            header.innerHTML = `
+                <div class="flex justify-between text-xs mb-1">
+                    <span class="text-gray-400 uppercase">Current Standing (${currentRR} / ${GOAL_RR} RR)</span>
+                    <span class="text-red-400 font-bold">${progressPercent.toFixed(1)}%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: ${progressPercent}%"></div>
+                </div>
+            `;
+            container.appendChild(header);
+
+            // Future Friday Projections
+            if (fridaysRemaining > 0 && currentRR < GOAL_RR) {
+                const projectionDiv = document.createElement('div');
+                projectionDiv.className = "mt-8";
+                projectionDiv.innerHTML = `<h4 class="text-xs font-bold text-gray-500 mb-2 uppercase italic tracking-widest">Required Path (Next 4 Fridays)</h4>`;
+                
+                const gap = GOAL_RR - currentRR;
+                const step = gap / fridaysRemaining;
+
+                for (let i = 1; i <= Math.min(4, fridaysRemaining); i++) {
+                    const projectedRR = Math.round(currentRR + (step * i));
+                    const projPercent = Math.min(100, (projectedRR / GOAL_RR) * 100);
+                    
+                    const pItem = document.createElement('div');
+                    pItem.className = "mb-3 opacity-60";
+                    pItem.innerHTML = `
+                        <div class="flex justify-between text-[10px] mb-1">
+                            <span>Friday #${i} Projection</span>
+                            <span class="text-yellow-500">${projectedRR} RR</span>
+                        </div>
+                        <div class="h-1 bg-gray-800 rounded-full">
+                            <div class="h-full bg-yellow-600 rounded-full" style="width: ${projPercent}%"></div>
+                        </div>
+                    `;
+                    projectionDiv.appendChild(pItem);
+                }
+                container.appendChild(projectionDiv);
+            }
+        }
+    </script>
+</body>
+</html>
