@@ -99,7 +99,7 @@
                             </select>
                         </div>
                         <div>
-                            <label class="block text-sm text-gray-400 mb-1">Current RR (0-100)</label>
+                            <label class="block text-sm text-gray-400 mb-1">Current RR (0-99)</label>
                             <input type="number" id="currentRR" min="0" max="99" value="0" class="w-full p-2 rounded input-dark focus:outline-none">
                         </div>
                         <button onclick="saveInitialState()" class="w-full btn-valorant py-2 rounded font-bold uppercase text-sm tracking-widest">Update Start Point</button>
@@ -113,7 +113,7 @@
                             <span class="text-gray-400 text-sm">Total RR Needed:</span>
                             <span id="totalRRNeeded" class="font-bold text-red-400">--</span>
                         </div>
-                        <div class="flex justify-between">
+                        <div class="flex justify-between border-t border-gray-700 pt-2">
                             <span class="text-gray-400 text-sm">Required RR/Week:</span>
                             <span id="weeklyTarget" class="font-bold text-yellow-400">--</span>
                         </div>
@@ -128,7 +128,7 @@
                     <h2 class="text-lg font-semibold mb-4">Log Friday Progress</h2>
                     <div class="flex flex-col md:flex-row gap-4 items-end">
                         <div class="flex-1">
-                            <label class="block text-sm text-gray-400 mb-1">RR Gained/Lost this week (+ or -)</label>
+                            <label class="block text-sm text-gray-400 mb-1">Total Net RR Change this week (+ or -)</label>
                             <input type="number" id="weeklyChange" placeholder="e.g. 25 or -15" class="w-full p-2 rounded input-dark focus:outline-none">
                         </div>
                         <button onclick="logProgress()" class="btn-valorant px-6 py-2 rounded font-bold uppercase text-sm h-[42px]">Log Friday</button>
@@ -150,7 +150,7 @@
                             <tr>
                                 <th class="p-3">Date</th>
                                 <th class="p-3">Change</th>
-                                <th class="p-3">Total RR</th>
+                                <th class="p-3">Cumulative RR</th>
                                 <th class="p-3">Status</th>
                             </tr>
                         </thead>
@@ -166,7 +166,7 @@
     <script>
         // Constants
         const GOAL_RR = 1800; // Ascendant 1 starts here
-        const APP_STORAGE_KEY = 'val_rank_tracker_data';
+        const APP_STORAGE_KEY = 'val_rank_tracker_data_v2';
 
         // State
         let state = {
@@ -196,12 +196,20 @@
             const now = new Date();
             const yearEnd = new Date(now.getFullYear(), 11, 31);
             let count = 0;
+            
+            // Start checking from tomorrow to find all upcoming Fridays
             let tempDate = new Date(now);
+            tempDate.setDate(tempDate.getDate() + 1);
 
             while (tempDate <= yearEnd) {
-                if (tempDate.getDay() === 5) count++;
+                if (tempDate.getDay() === 5) { // 5 is Friday
+                    count++;
+                }
                 tempDate.setDate(tempDate.getDate() + 1);
             }
+            
+            // If today is Friday, we usually count the one we are logging for as "this week"
+            // But for "remaining", we count future ones.
             return count;
         }
 
@@ -244,11 +252,12 @@
             
             document.getElementById('totalRRNeeded').innerText = remainingRR > 0 ? remainingRR : "GOAL REACHED!";
             
-            const weeklyRequired = fridaysLeft > 0 ? (remainingRR / fridaysLeft).toFixed(1) : 0;
+            // Calculation Fix: Target is updated based on what's actually left to reach the goal
+            const weeklyRequired = fridaysLeft > 0 ? Math.ceil(remainingRR / fridaysLeft) : 0;
             document.getElementById('weeklyTarget').innerText = remainingRR > 0 ? `${weeklyRequired} RR` : "Done";
 
             renderTable();
-            renderProjections(fridaysLeft, currentTotal);
+            renderProjections(fridaysLeft, currentTotal, weeklyRequired);
         }
 
         function renderTable() {
@@ -260,7 +269,7 @@
                 row.className = "border-t border-gray-800 hover:bg-gray-800/30";
                 
                 const changeColor = log.change >= 0 ? 'text-green-400' : 'text-red-400';
-                const status = log.total >= state.startRR ? 'Trending Up' : 'Trending Down';
+                const status = log.total >= state.startRR ? 'Up from start' : 'Down from start';
 
                 row.innerHTML = `
                     <td class="p-3 text-gray-300">${log.date}</td>
@@ -272,7 +281,7 @@
             });
         }
 
-        function renderProjections(fridaysRemaining, currentRR) {
+        function renderProjections(fridaysRemaining, currentRR, weeklyRequired) {
             const container = document.getElementById('chartContainer');
             container.innerHTML = '';
 
@@ -295,20 +304,17 @@
             if (fridaysRemaining > 0 && currentRR < GOAL_RR) {
                 const projectionDiv = document.createElement('div');
                 projectionDiv.className = "mt-8";
-                projectionDiv.innerHTML = `<h4 class="text-xs font-bold text-gray-500 mb-2 uppercase italic tracking-widest">Required Path (Next 4 Fridays)</h4>`;
+                projectionDiv.innerHTML = `<h4 class="text-xs font-bold text-gray-500 mb-2 uppercase italic tracking-widest">Needed Path (Next 4 Fridays)</h4>`;
                 
-                const gap = GOAL_RR - currentRR;
-                const step = gap / fridaysRemaining;
-
                 for (let i = 1; i <= Math.min(4, fridaysRemaining); i++) {
-                    const projectedRR = Math.round(currentRR + (step * i));
+                    const projectedRR = Math.round(currentRR + (weeklyRequired * i));
                     const projPercent = Math.min(100, (projectedRR / GOAL_RR) * 100);
                     
                     const pItem = document.createElement('div');
                     pItem.className = "mb-3 opacity-60";
                     pItem.innerHTML = `
                         <div class="flex justify-between text-[10px] mb-1">
-                            <span>Friday #${i} Projection</span>
+                            <span>Friday #${i} Goal</span>
                             <span class="text-yellow-500">${projectedRR} RR</span>
                         </div>
                         <div class="h-1 bg-gray-800 rounded-full">
