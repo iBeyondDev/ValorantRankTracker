@@ -11,6 +11,8 @@
         .valorant-card { background-color: #1f2326; border-left: 4px solid #ff4655; }
         .btn-valorant { background-color: #ff4655; transition: all 0.2s; }
         .btn-valorant:hover { background-color: #ff5e6a; transform: translateY(-1px); }
+        .btn-outline { border: 1px solid #3d434a; background: transparent; transition: all 0.2s; }
+        .btn-outline:hover { background: #3d434a; }
         .input-dark { background-color: #2a2e33; border: 1px solid #3d434a; color: white; }
         .rank-ascendant { color: #49ba92; text-shadow: 0 0 10px rgba(73, 186, 146, 0.4); }
         .progress-bar { background: #3d434a; height: 8px; border-radius: 4px; overflow: hidden; }
@@ -45,6 +47,12 @@
                         </select>
                         <input type="number" id="currentRR" placeholder="Start RR (0-99)" class="w-full p-2 rounded input-dark focus:outline-none">
                         <button onclick="saveInitialState()" class="w-full btn-valorant py-2 rounded font-bold uppercase text-xs tracking-widest">Reset Progress</button>
+                        
+                        <div class="grid grid-cols-2 gap-2 pt-4 border-t border-gray-700">
+                            <button onclick="exportData()" class="btn-outline text-[10px] uppercase font-bold py-2 rounded">Export Data</button>
+                            <button onclick="document.getElementById('importFile').click()" class="btn-outline text-[10px] uppercase font-bold py-2 rounded">Import Data</button>
+                            <input type="file" id="importFile" class="hidden" accept=".json" onchange="importData(event)">
+                        </div>
                     </div>
                 </section>
 
@@ -116,6 +124,43 @@
             localStorage.setItem(APP_STORAGE_KEY, JSON.stringify(state));
         }
 
+        // --- IMPORT / EXPORT FUNCTIONS ---
+        function exportData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
+            const downloadAnchorNode = document.createElement('a');
+            const date = new Date().toISOString().split('T')[0];
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", `valorant_tracker_backup_${date}.json`);
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedState = JSON.parse(e.target.result);
+                    // Basic validation
+                    if (importedState.logs && Array.isArray(importedState.logs)) {
+                        state = importedState;
+                        saveState();
+                        refreshUI();
+                        alert("Data imported successfully!");
+                    } else {
+                        throw new Error("Invalid format");
+                    }
+                } catch (err) {
+                    alert("Error importing file. Please ensure it is a valid backup JSON.");
+                }
+            };
+            reader.readAsText(file);
+        }
+        // ---------------------------------
+
         function getFridaysRemaining() {
             const now = new Date();
             const yearEnd = new Date(now.getFullYear(), 11, 31);
@@ -130,10 +175,11 @@
         }
 
         function saveInitialState() {
+            if(!confirm("This will wipe your current match history. Proceed?")) return;
             const rankBase = parseInt(document.getElementById('currentRank').value);
             const rr = parseInt(document.getElementById('currentRR').value) || 0;
             state.startRR = rankBase + rr;
-            state.lastFridayRR = state.startRR; // Starting point for the first week
+            state.lastFridayRR = state.startRR;
             state.logs = [];
             saveState();
             refreshUI();
@@ -164,12 +210,7 @@
 
             const currentTotal = state.logs.length > 0 ? state.logs[state.logs.length - 1].total : state.startRR;
             const remainingToGoal = GOAL_RR - currentTotal;
-            
-            // Weekly calculations
             const weeklyRequired = fridaysLeft > 0 ? Math.ceil(remainingToGoal / fridaysLeft) : 0;
-            
-            // Calculate how much earned *specifically this week* (since last Friday)
-            // For simplicity, we compare current total vs the starting point of the week
             const earnedThisWeek = currentTotal - state.lastFridayRR;
             const stillNeededByFriday = weeklyRequired - earnedThisWeek;
 
